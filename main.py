@@ -67,6 +67,18 @@ def predict(request: SentimentRequest):
         "sentiment": str(prediction),
         "confidence": confidence
     }
+
+def is_model_ready():
+    return models_loaded and model is not None and vectorizer is not None
+
+if not is_model_ready():
+    return {
+        "text": request.text,
+        "sentiment": "ERROR",
+        "confidence": None,
+        "error": "Models not loaded"
+    }
+
 from typing import List
 from pydantic import BaseModel
 
