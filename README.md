@@ -114,6 +114,7 @@ Runs pytest
 
 Fails build if any test fails
 
-👤** Author**
+👤 Author
 
 Ritansh Shrivastava
+
