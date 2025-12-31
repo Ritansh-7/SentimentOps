@@ -1,46 +1,48 @@
 from fastapi.testclient import TestClient
-from main import app
+import main
+from unittest.mock import MagicMock
 
-client = TestClient(app)
+# ---- FORCE MODELS TO BE AVAILABLE ----
+main.models_loaded = True
+
+# ---- MOCK VECTORIZER ----
+main.vectorizer = MagicMock()
+main.vectorizer.transform.return_value = [[0, 1], [1, 0]]
+
+# ---- MOCK MODEL ----
+main.model = MagicMock()
+main.model.predict.return_value = ["POSITIVE", "NEGATIVE"]
+main.model.predict_proba.return_value = [[0.1, 0.9], [0.8, 0.2]]
+
+client = TestClient(main.app)
 
 # ===== TEST ROOT ENDPOINT =====
 def test_root():
-    """Test root endpoint"""
     response = client.get("/")
     assert response.status_code == 200
     assert response.json()["message"] == "Sentiment Analysis API is running!"
 
 # ===== TEST HEALTH ENDPOINT =====
 def test_health():
-    """Test health check"""
     response = client.get("/health")
     assert response.status_code == 200
-    assert "status" in response.json()
+    assert response.json()["models_loaded"] is True
 
 # ===== TEST PREDICT WITH EMPTY TEXT =====
 def test_predict_empty_text():
-    """Test prediction with empty text"""
-    payload = {"text": ""}
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json={"text": ""})
     assert response.status_code == 200
     assert response.json()["sentiment"] == "ERROR"
 
 # ===== TEST PREDICT WITH VALID TEXT =====
 def test_predict_valid_text():
-    """Test prediction with valid text"""
-    payload = {"text": "This is a great product!"}
-    response = client.post("/predict", json=payload)
+    response = client.post("/predict", json={"text": "This is great"})
     assert response.status_code == 200
-    data = response.json()
-    assert "sentiment" in data
-    assert "text" in data
+    assert "sentiment" in response.json()
 
 # ===== TEST PREDICT RESPONSE FORMAT =====
 def test_predict_response_format():
-    """Test response has correct format"""
-    payload = {"text": "I love this!"}
-    response = client.post("/predict", json=payload)
-    assert response.status_code == 200
+    response = client.post("/predict", json={"text": "I love this!"})
     data = response.json()
     assert "text" in data
     assert "sentiment" in data
@@ -54,16 +56,14 @@ def test_predict_batch():
     )
     assert response.status_code == 200
     assert "predictions" in response.json()
-
+    assert len(response.json()["predictions"]) == 2
 
 # ===== TEST INVALID REQUEST =====
 def test_invalid_request():
-    """Test with missing text field"""
     response = client.post("/predict", json={})
-    assert response.status_code == 422  # Validation error
+    assert response.status_code == 422
 
 # ===== TEST DOCS ENDPOINT =====
 def test_docs_endpoint():
-    """Test that docs endpoint exists"""
     response = client.get("/docs")
     assert response.status_code == 200
